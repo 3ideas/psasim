@@ -122,6 +122,25 @@ func (n *ComponentDb) GetName(alias string) (*NameDetails, error) {
 	return &name.NameDetails, nil
 }
 
+// ResolveNames resolves the names for all components
+// It sets the Name field for each component
+// It also builds the componentsByName map
+func (n *ComponentDb) ResolveNames() {
+
+	for _, component := range n.Components.componentsByAlias {
+
+		name, err := n.GetName(component.ComponentAlias)
+		if err != nil {
+			continue
+		}
+		if name.Name == "" {
+			continue
+		}
+		component.Name = name.Name
+	}
+	n.Components.BuildComponentByName()
+}
+
 func (n *ComponentDb) getNameFromRules(parents []*Component, nameRules []*ComponentNameRule) *NameDetailsFull {
 
 	if len(nameRules) == 0 {

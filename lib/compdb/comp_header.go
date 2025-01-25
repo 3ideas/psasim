@@ -49,12 +49,14 @@ type Component struct {
 	// AutomaticCircuitNaming    bool           `db:"AUTOMATIC_CIRCUIT_NAMING"`
 	// PhasesNormallyOpen        bool           `db:"PHASES_NORMALLY_OPEN"`
 	// path     string // TODO: remove this as should use GetPath()
+	Name     string
 	Children []*Component
 }
 
 type Components struct {
 	componentsByAlias map[string]*Component
 	componentsByID    map[string]*Component
+	componentsByName  map[string][]*Component
 	ByPath            map[string]*Component
 	Root              *Component
 }
@@ -90,6 +92,20 @@ func (c *Components) AddComponent(component *Component) error {
 
 	c.ByPath[component.GetFullPath()] = component
 
+	return nil
+}
+
+func (c *Components) BuildComponentByName() error {
+	c.componentsByName = make(map[string][]*Component)
+	for _, component := range c.componentsByAlias {
+		if component.Name == "" {
+			continue
+		}
+		if _, ok := c.componentsByName[component.Name]; !ok {
+			c.componentsByName[component.Name] = make([]*Component, 0)
+		}
+		c.componentsByName[component.Name] = append(c.componentsByName[component.Name], component)
+	}
 	return nil
 }
 

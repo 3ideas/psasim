@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/3ideas/psasim/lib/compare"
 	"github.com/3ideas/psasim/lib/compdb"
 	"github.com/3ideas/psasim/lib/loglevel"
 	"github.com/3ideas/psasim/lib/namer_service/namer_client"
@@ -24,6 +25,10 @@ func main() {
 	dbFile := flag.String("db", "", "database file")
 	server := flag.Bool("server", false, "run as server")
 	useNameService := flag.Bool("usenameservice", false, "use name service for name resolution (rather than dn)")
+	checkaliases := flag.Bool("checkaliases", false, "check aliases")
+	dumpNames := flag.String("dumpnames", "", "dump names to file")
+
+	comparisonFile := flag.String("comparisonfile", "", "comparison file")
 
 	flag.Parse()
 
@@ -55,6 +60,21 @@ func main() {
 		duration := time.Since(startTime)                          // Calculate duration
 		slog.Info("Completed reading namer", "duration", duration) // Log duration
 		fmt.Printf("Completed reading namer in %s\n", duration)    // Print duration
+	}
+
+	if *dumpNames != "" {
+		compDb.DumpNames(*dumpNames)
+	}
+
+	var alarmComparison *compare.AlarmsComparison
+	var eterraToPO *compare.EterraToPO
+	if *comparisonFile != "" {
+		alarmComparison, err = compare.ReadAlarmComparison(*comparisonFile)
+		if err != nil {
+			log.Fatal("Error reading comparison file", err)
+		}
+
+		eterraToPO = alarmComparison.EterraToPO()
 	}
 
 	// Do we need to run the server?
@@ -118,12 +138,16 @@ func main() {
 		nameChecker = compDb
 	}
 
+	if *checkaliases {
+		psalerts.CheckAliases(nameChecker)
+	}
+
 	if alarms == nil {
 		fmt.Println("No alarms to process")
 		log.Fatal("No alarms to process")
 	}
 
 	alarms.PrintAlarmCounts()
-	alarms.ResolveAliases(nameChecker)
+	alarms.ResolveAliases(nameChecker, eterraToPO)
 
 }

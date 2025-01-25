@@ -44,13 +44,43 @@
             "program": "${workspaceFolder}",
             "args": [
                 "-log", "output/alias_resolve_nameservice.log",
-                "-loglevel", "warn",
+                "-loglevel", "info",
                 "-usenameservice",
                 // "-db", "../data_loads/load10/export_of_dataload10.db",
                 "-psalerts", "ref/Performance_Test_Data_Storm_Arwen_PSALERTS.csv",
+                "-comparisonfile", "ref/dl10/Comparison_eTerra_dl10_all_po_dl10_5-v1.csv",
                 // "-outputdir", "output",
                 // "-compsOfInterest","AREC1/132_TX/T1A/TAPC",
             ],
         },
+        {
+            "name": "Check aliases",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}",
+            "args": [
+                "-log", "output/check_aliases.log",
+                "-loglevel", "warn",
+                "-usenameservice",
+                // "-db", "../data_loads/load10/export_of_dataload10.db",
+                // "-psalerts", "ref/Performance_Test_Data_Storm_Arwen_PSALERTS.csv",
+                // "-outputdir", "output",
+                // "-compsOfInterest","AREC1/132_TX/T1A/TAPC",
+                "-checkaliases",
+            ],
+        },
+
+        {
+            "name": "Dump names",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}",
+            "args": [
+                "-dumpnames", "output/names.csv",
+                "-db", "../data_loads/load10/export_of_dataload10.db",
+            ],
+        }
     ]
 }

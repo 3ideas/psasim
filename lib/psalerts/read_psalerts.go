@@ -9,7 +9,7 @@ import (
 	"github.com/3ideas/psasim/lib/csvutil"
 )
 
-type Alarm struct {
+type Alert struct {
 	LicenseArea          string    `csv:"License Area"`
 	Time                 time.Time // Computed from ALARM_TIME and ALARM_USECS
 	Alias                string    // Computed from ALARM_COMPONENT_ALIAS
@@ -47,7 +47,7 @@ type Alarm struct {
 }
 
 // PostProcess processes the alarm after CSV reading to set computed fields
-func (a *Alarm) PostProcess() error {
+func (a *Alert) PostProcess() error {
 	// Parse the time string
 	t, err := time.Parse("2006-01-02 15:04:05", a.AlarmTime)
 	if err != nil {
@@ -66,42 +66,59 @@ func (a *Alarm) PostProcess() error {
 
 	// Process the alias
 	a.Alias = a.AlarmComponentAlias
-	if strings.Count(a.AlarmComponentAlias, ".") == 3 {
+
+	parts := strings.Split(a.AlarmComponentAlias, ".")
+	if len(parts) == 4 {
 		// Replace dots with forward slashes
 		a.Alias = strings.ReplaceAll(a.AlarmComponentAlias, ".", "/")
 	}
 
+	// if name is of the form COCK2.275_CB.W10.SWDD.OPEN
+	// then the alias is COCK2/275_CB/W10/SWDD
+	if len(parts) == 5 {
+		// Join the first 4 parts with forward slashes
+		a.Alias = strings.Join(parts[:4], "/")
+	}
 	return nil
 }
 
 type PSAlerts struct {
-	Alarms []*Alarm
+	Alerts []*Alert
 }
 
 func ReadPSAlerts(filename string) (*PSAlerts, error) {
-	alarms, err := csvutil.ReadItems[*Alarm](filename)
+	alerts, err := csvutil.ReadItems[*Alert](filename)
 	if err != nil {
 		return nil, fmt.Errorf("reading CSV: %w", err)
 	}
 
-	parsedAlarms := make([]*Alarm, 0, len(alarms))
+	parsedAlarms := make([]*Alert, 0, len(alerts))
 	// Post-process each alarm to set computed fields
-	for _, alarm := range alarms {
-		if alarm.AlarmTime == "" {
+	for _, alert := range alerts {
+		if alert.AlarmComponentAlias == "D06R0718C16D3-6" {
+			fmt.Println(alert)
+		}
+		if alert.AlarmTime == "" {
 			continue
 		}
-		if err := alarm.PostProcess(); err != nil {
+		if alert.AlarmSubstationName == "COMMS" {
+			continue
+		}
+		if alert.AlarmName == "SWGR IED COMMS" || alert.AlarmName == "SWG IED COMMS" {
+			continue
+		}
+		if err := alert.PostProcess(); err != nil {
 			return nil, fmt.Errorf("post-processing alarm: %w", err)
 		}
-		parsedAlarms = append(parsedAlarms, alarm)
+		parsedAlarms = append(parsedAlarms, alert)
 	}
 
-	return &PSAlerts{Alarms: parsedAlarms}, nil
+	return &PSAlerts{Alerts: parsedAlarms}, nil
 }
 
-func (p *PSAlerts) GetAlarmCounts() map[string]int {
+func (p *PSAlerts) GetAlertCounts() map[string]int {
 	alarmCounts := make(map[string]int)
-	for _, alarm := range p.Alarms {
+	for _, alarm := range p.Alerts {
 		alarmCounts[alarm.AlarmType]++
 	}
 	return alarmCounts
@@ -109,7 +126,7 @@ func (p *PSAlerts) GetAlarmCounts() map[string]int {
 
 // PrintAlarmCounts prints the alarm counts to the console, sorted from highest to lowest count
 func (p *PSAlerts) PrintAlarmCounts() {
-	alarmCounts := p.GetAlarmCounts()
+	alarmCounts := p.GetAlertCounts()
 
 	// Create a slice of key-value pairs for sorting
 	type kv struct {

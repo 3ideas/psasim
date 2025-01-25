@@ -2,6 +2,7 @@ package compdb
 
 import (
 	"fmt"
+	"os"
 
 	_ "github.com/glebarez/go-sqlite"
 	"github.com/jmoiron/sqlx"
@@ -64,6 +65,10 @@ func LoadCompDb(dbFile string) (*ComponentDb, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	fmt.Println("Resolving names")
+	namer.ResolveNames()
+	fmt.Println("Names resolved")
 
 	return &namer, nil
 }
@@ -140,4 +145,23 @@ func (n *ComponentDb) GetAttributeValue(alias string, attributeName string) (Att
 		return AttributeValue{}, err
 	}
 	return AttributeValue{Name: attr.AttributeName, Value: attr.AttributeValue, ID: attr.AttributeID, CompID: attr.ComponentID, Definition: attr.AttributeDefinition}, nil
+}
+
+func (n *ComponentDb) DumpNames(filename string) error {
+
+	// Open the file
+	file, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	// Write the names to the file
+	for _, component := range n.Components.componentsByName {
+		for _, comp := range component {
+			fmt.Fprintf(file, "%s,%s,\"%s\"\n", comp.ComponentAlias, comp.ComponentPathname, comp.Name)
+		}
+	}
+
+	return nil
 }
