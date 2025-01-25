@@ -1,0 +1,227 @@
+syntax = "proto3";
+
+// Rebuild from the base dir with:
+// protoc --go_out=. --go-grpc_out=. lib/namer_service/namer_service.proto
+
+option go_package = "lib/namer_service;namer_service"; // Add this line
+package namer_service;
+
+service NamerService {
+    rpc GetName(ComponentAlias) returns (GetNameResponse);
+    rpc GetNameWithHierarchy(ComponentAlias) returns (GetNameWithHierarchyResponse);
+    rpc RenameComponent(RenameComponentRequest) returns (RenameComponentResponse);
+    rpc MoveComponent(MoveComponentRequest) returns (MoveComponentResponse);
+    rpc CreateAttribute(CreateAttributeRequest) returns (CreateAttributeResponse);
+    rpc UpdateAttribute(UpdateAttributeRequest) returns (UpdateAttributeResponse);
+    rpc CreateComponent(CreateComponentRequest) returns (CreateComponentResponse);
+    rpc RollbackAll(RollbackAllRequest) returns (RollbackAllResponse);
+    rpc GetNumberOfChanges(GetNumberOfChangesRequest) returns (GetNumberOfChangesResponse);
+    rpc GetAttributeValue(GetAttributeValueRequest) returns (GetAttributeValueResponse);
+    rpc GetComponentClass(GetComponentClassRequest) returns (GetComponentClassResponse);
+    rpc SetRollbackPoint(SetRollbackPointRequest) returns (SetRollbackPointResponse);
+    rpc RollbackToPoint(RollbackToPointRequest) returns (RollbackToPointResponse);
+    rpc GetComponentByID(ComponentID) returns (ComponentInfoResponse);
+    rpc GetChildrenInfoByID(ComponentID) returns (GetChildrenByIDResponse);
+    rpc GetComponentInfo(ComponentAlias) returns (ComponentInfoResponse);
+    rpc GetHierarchyByAlias(GetHierarchyByAliasRequest) returns (GetHierarchyByAliasResponse);
+}
+
+// GetName Request/Response
+message ComponentID {
+    string ComponentID = 1; // The id for which to get the component
+}
+
+message ComponentAlias {
+    string alias = 1; // The alias for which to get the component
+}
+
+message GetChildrenByIDResponse {
+    repeated ComponentInfo children = 1; // The children of the component
+    string error = 2;
+}
+
+message GetHierarchyByAliasRequest {
+    string alias = 1; // The alias for which to get the hierarchy
+}
+
+message GetHierarchyByAliasResponse {
+    repeated ComponentInfo hierarchy = 1; // The hierarchy of the component
+    string error = 2;
+}
+
+
+message ComponentInfoResponse {
+    ComponentInfo compInfo =1;
+    string error =2;
+}
+
+message GetComponentClassRequest {
+    string alias = 1; // The alias for which to get the component class
+}
+
+message GetComponentClassResponse {
+    string component_class_name = 1; // The component class
+    string component_class_name_rule = 2; // The component class name rule
+    int32 substationClass = 3; 
+    string error = 4; // Error message if any
+}
+
+message GetNameResponse {
+    string name = 1; // The name retrieved
+    NamePartResponse location = 2; // The location of the name
+    NamePartResponse circuit = 3;
+    NamePartResponse plant = 4;
+    NamePartResponse origin = 5;
+    string error = 6; // Error message if any
+    string nameRule = 7; // The name rule used to generate the name
+    string pathname = 8; // The pathname of the component
+    string alias = 9; // The alias of the component
+}
+
+message NamePartResponse {
+    string value = 1; // The part of the name
+    string alias = 2; 
+    bool used = 3; // Whether the part was used to generate the name
+    repeated NamePartDetailResponse namePartDetails = 4; // The rule parts of the name
+}
+
+message NamePartDetailResponse {
+    string value = 1; // The part of the name
+    string source = 2; // The sources of the part
+    string rawValue = 3; // The raw values of the part
+    string separator = 4; // The separator of the part
+}
+
+
+message GetNameWithHierarchyResponse {
+    GetNameResponse name = 1; // The name
+    repeated ComponentInfo hierarchy = 2; // 1st entry is the component itself, followed by all its parents upto ROOT
+    string error = 3; // Error message if any
+}
+
+message ComponentInfo {
+    string alias = 1; // The alias of the component
+    string path = 2; // The path of the component
+    string componentClassname = 3; // The class of the component
+    string substationClassname = 4; // The substation class of the component
+    string id = 5; // The id of the component
+    string cloneID = 6; // The clone id of the component
+    string clonePathname = 7; // The clone pathname of the component
+    string nameRule = 8; // The name rule of the component
+    bool inSymbol = 9; // Whether the component is in a symbol
+}
+
+
+
+// RenameComponent Request/Response
+message RenameComponentRequest {
+    string alias = 1; // The alias of the component to rename
+    string new_name = 2; // The new name for the component
+}
+
+message RenameComponentResponse {
+    string error = 1; // Error message if any
+}
+
+// Move Request/Response
+message MoveComponentRequest {
+    string alias = 1; // The alias of the component to move
+    string new_location_alias = 2; // The new location alias
+}
+
+message MoveComponentResponse {
+    string error = 1; // Error message if any
+}
+
+// CreateAttribute Request/Response
+message CreateAttributeRequest {
+    string alias = 1; // The alias of the component
+    string attr_name = 2; // The name of the attribute
+    string attr_value = 3; // The value of the attribute
+}
+
+message CreateAttributeResponse {
+    string error = 1; // Error message if any
+}
+
+message UpdateAttributeRequest {
+    string alias = 1; // The alias of the component
+    string attr_name = 2; // The name of the attribute
+    string attr_value = 3; // The value of the attribute
+}
+
+message UpdateAttributeResponse {
+    string error = 1; // Error message if any
+}
+
+// CreateComponent Request/Response
+message CreateComponentRequest {
+    string alias = 1; // The alias for the new component
+    string name = 2; // The name of the new component
+    string parent_alias = 3; // The parent component alias
+    string template_alias = 4; // The template component alias
+    string substation_class_name = 5; // The substation class name
+}
+
+message CreateComponentResponse {
+    string error = 1; // Error message if any
+}
+
+// Rollback Request/Response
+message RollbackRequest {}
+
+message RollbackResponse {
+    string error = 1; // Error message if any
+}
+
+// RollbackAll Request/Response
+message RollbackAllRequest {}
+
+message RollbackAllResponse {
+    string error = 1; // Error message if any
+}
+
+// SetRollbackPoint Request/Response
+message SetRollbackPointRequest {}
+
+message SetRollbackPointResponse {
+    string error = 1; // Error message if any
+}
+
+// RollbackToPoint Request/Response
+message RollbackToPointRequest {}
+
+message RollbackToPointResponse {
+    string error = 1; // Error message if any
+}
+
+// GetNumberOfChanges Request/Response
+message GetNumberOfChangesRequest {}
+
+message GetNumberOfChangesResponse {
+    int32 number_of_changes = 1; // The number of changes
+}
+
+message GetAttributeValueRequest {
+    string alias = 1; // The alias of the component
+    string attrName = 2; // The name of the attribute
+}
+
+message GetAttributeValueResponse {
+    string attr_value = 1; // The value of the attribute
+    string id = 2; // The id of the attribute
+    string comp_id = 3; // The id of the component
+    string definition = 4; // The definition of the attribute
+    string error = 5; // Error message if any
+}
+
+// Define the enums for TextLocationType and TextTypeType if they are not already defined
+enum TextLocationType {
+    UNKNOWN = 0;
+    // Add other values as necessary
+}
+
+enum TextTypeType {
+    UNKNOWN1 = 0;
+    // Add other values as necessary
+}

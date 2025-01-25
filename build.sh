@@ -1,0 +1,1 @@
+go build -o psasim main.go
