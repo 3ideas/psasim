@@ -1,6 +1,7 @@
 package csvutil
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/gocarina/gocsv"
@@ -20,4 +21,19 @@ func ReadItems[T any](filename string) ([]T, error) {
 	}
 
 	return items, nil
+}
+
+func WriteCSV[T any](filename string, items []T) error {
+	fh, err := os.Create(filename)
+	if err != nil {
+		return fmt.Errorf("creating file: %w", err)
+	}
+	defer fh.Close()
+
+	err = gocsv.MarshalFile(&items, fh) // Use this to save the CSV back to the file
+	if err != nil {
+		return fmt.Errorf("writing file: %w", err)
+	}
+
+	return nil
 }

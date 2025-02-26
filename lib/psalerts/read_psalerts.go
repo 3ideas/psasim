@@ -10,6 +10,7 @@ import (
 )
 
 type Alert struct {
+	LineNumber           int
 	LicenseArea          string    `csv:"License Area"`
 	Time                 time.Time // Computed from ALARM_TIME and ALARM_USECS
 	Alias                string    // Computed from ALARM_COMPONENT_ALIAS
@@ -51,7 +52,10 @@ func (a *Alert) PostProcess() error {
 	// Parse the time string
 	t, err := time.Parse("2006-01-02 15:04:05", a.AlarmTime)
 	if err != nil {
-		return fmt.Errorf("parsing alarm time: %s  Error: %w", a.AlarmTime, err)
+		t, err = time.Parse("02/01/2006 15:04:05", a.AlarmTime)
+		if err != nil {
+			return fmt.Errorf("parsing alarm time: %s  Error: %w", a.AlarmTime, err)
+		}
 	}
 
 	// Convert microseconds to duration and add to time
@@ -86,18 +90,24 @@ type PSAlerts struct {
 	Alerts []*Alert
 }
 
+func (p *PSAlerts) Add(alert *Alert) {
+	p.Alerts = append(p.Alerts, alert)
+}
+
 func ReadPSAlerts(filename string) (*PSAlerts, error) {
 	alerts, err := csvutil.ReadItems[*Alert](filename)
 	if err != nil {
 		return nil, fmt.Errorf("reading CSV: %w", err)
 	}
 
-	parsedAlarms := make([]*Alert, 0, len(alerts))
+	psAlerts := &PSAlerts{}
+
 	// Post-process each alarm to set computed fields
-	for _, alert := range alerts {
-		if alert.AlarmComponentAlias == "D06R0718C16D3-6" {
-			fmt.Println(alert)
-		}
+	for i, alert := range alerts {
+		alert.LineNumber = i + 2 // Line number in the CSV file (1 is the header row)
+		// if alert.AlarmComponentAlias == "D06R0718C16D3-6" {
+		// 	fmt.Println(alert)
+		// }
 		if alert.AlarmTime == "" {
 			continue
 		}
@@ -108,12 +118,12 @@ func ReadPSAlerts(filename string) (*PSAlerts, error) {
 			continue
 		}
 		if err := alert.PostProcess(); err != nil {
-			return nil, fmt.Errorf("post-processing alarm: %w", err)
+			return nil, fmt.Errorf("Line %d: post-processing alarm: %w", i, err)
 		}
-		parsedAlarms = append(parsedAlarms, alert)
+		psAlerts.Add(alert)
 	}
 
-	return &PSAlerts{Alerts: parsedAlarms}, nil
+	return psAlerts, nil
 }
 
 func (p *PSAlerts) GetAlertCounts() map[string]int {
@@ -148,4 +158,8 @@ func (p *PSAlerts) PrintAlarmCounts() {
 	for _, pair := range pairs {
 		fmt.Printf("%-25s: %d\n", pair.Type, pair.Count)
 	}
+}
+
+func (p *PSAlerts) WriteCSV(filename string) error {
+	return csvutil.WriteCSV(filename, p.Alerts)
 }

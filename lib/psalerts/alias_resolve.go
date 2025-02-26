@@ -11,38 +11,68 @@ type AliasResolver interface {
 	LookupAlias(alias string) (string, bool)
 }
 
-func (p *PSAlerts) ResolveAliases(ns namerif.NameService, eterraAliasResolver AliasResolver) error {
+func (p *PSAlerts) ResolveAliases(ns namerif.NameService, eterraAliasResolver AliasResolver, resolvedAlarmsFile string, unresolvedAlarmsFile string) error {
 
 	count := 0
 	resolved := 0
 	notFound := 0
-	for _, alarm := range p.Alerts {
+
+	resolvedAlerts := &PSAlerts{}
+	unresolvedAlerts := &PSAlerts{}
+	// var ok bool
+	for _, alert := range p.Alerts {
+
+		if alert.AlarmComponentAlias == "OAKLANDS CRESCENT S-RTU" {
+			fmt.Printf("Alert %d: %+v\n", alert.LineNumber, alert)
+		}
 		count++
 
-		_, err := ns.GetComponentInfo(alarm.Alias)
+		poAliasInfo, err := ns.GetComponentInfo(alert.Alias)
 		if err != nil && eterraAliasResolver != nil {
-			poAlias, ok := eterraAliasResolver.LookupAlias(alarm.Alias)
+			poAlias, ok := eterraAliasResolver.LookupAlias(alert.Alias)
 			if !ok {
-				slog.Warn("Alias not found", "alias", alarm.Alias, "Original alias", alarm.AlarmComponentAlias, "type", alarm.AlarmType, "substation alias", alarm.AlarmSubstationAlias, "substation name", alarm.AlarmSubstationName,
-					"alarm name", alarm.AlarmName, "alarm text", alarm.AlarmText, "alarm text2", alarm.AlarmText2,
-					"descriptor", alarm.Descriptor, "component pathname", alarm.ComponentPathname, "primary busbar", alarm.PrimaryBusbar, "primary feeder", alarm.PrimaryFeeder)
+				unresolvedAlerts.Add(alert)
+				slog.Warn("Alias not found", "alias", alert.Alias, "Original alias", alert.AlarmComponentAlias, "type", alert.AlarmType, "substation alias", alert.AlarmSubstationAlias, "substation name", alert.AlarmSubstationName,
+					"alarm name", alert.AlarmName, "alarm text", alert.AlarmText, "alarm text2", alert.AlarmText2,
+					"descriptor", alert.Descriptor, "component pathname", alert.ComponentPathname, "primary busbar", alert.PrimaryBusbar, "primary feeder", alert.PrimaryFeeder, "lineNo", alert.LineNumber)
 				notFound++
 				continue
 			} else {
-				_, err := ns.GetComponentInfo(poAlias)
-				if err != nil {
-					slog.Warn("Alias not found", "alias", alarm.Alias, "Original alias", alarm.AlarmComponentAlias, "type", alarm.AlarmType, "substation alias", alarm.AlarmSubstationAlias, "substation name", alarm.AlarmSubstationName,
-						"alarm name", alarm.AlarmName, "alarm text", alarm.AlarmText, "alarm text2", alarm.AlarmText2,
-						"descriptor", alarm.Descriptor, "component pathname", alarm.ComponentPathname, "primary busbar", alarm.PrimaryBusbar, "primary feeder", alarm.PrimaryFeeder)
+				if poAlias == "" {
+					slog.Info("Eterra entry found but no mapping to PO alias!", "alias", alert.Alias, "Original alias", alert.AlarmComponentAlias, "type", alert.AlarmType, "substation alias", alert.AlarmSubstationAlias, "substation name", alert.AlarmSubstationName,
+						"alarm name", alert.AlarmName, "alarm text", alert.AlarmText, "alarm text2", alert.AlarmText2,
+						"descriptor", alert.Descriptor, "component pathname", alert.ComponentPathname, "primary busbar", alert.PrimaryBusbar, "primary feeder", alert.PrimaryFeeder, "lineNo", alert.LineNumber)
 					notFound++
+					unresolvedAlerts.Add(alert)
 					continue
+				} else {
+					poAliasInfo, err = ns.GetComponentInfo(poAlias)
+					if err != nil {
+						slog.Error("Alias not found in PO after eterra/po mapping was found!", "alias", alert.Alias, "Original alias", alert.AlarmComponentAlias, "type", alert.AlarmType, "substation alias", alert.AlarmSubstationAlias, "substation name", alert.AlarmSubstationName,
+							"alarm name", alert.AlarmName, "alarm text", alert.AlarmText, "alarm text2", alert.AlarmText2,
+							"descriptor", alert.Descriptor, "component pathname", alert.ComponentPathname, "primary busbar", alert.PrimaryBusbar, "primary feeder", alert.PrimaryFeeder, "lineNo", alert.LineNumber)
+						notFound++
+						unresolvedAlerts.Add(alert)
+						continue
+					}
 				}
 			}
 		}
-		slog.Info("Alias found", "alias", alarm.Alias, "type", alarm.AlarmType, "alert", alarm)
+		poAlias := poAliasInfo.Alias
+
+		alert.Alias = poAlias
+
+		resolvedAlerts.Add(alert)
+
+		slog.Info("Alias found", "alias", alert.Alias, "type", alert.AlarmType, "alert", alert)
 		resolved++
 	}
 
+	// Write the resolved alarms to the file as a CSV
+	resolvedAlerts.WriteCSV(resolvedAlarmsFile)
+	if unresolvedAlarmsFile != "" {
+		unresolvedAlerts.WriteCSV(unresolvedAlarmsFile)
+	}
 	fmt.Printf("Resolved %d of %d alarms\n", resolved, count)
 	fmt.Printf("Not found %d of %d alarms\n", notFound, count)
 

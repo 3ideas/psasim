@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
-	"time"
 
 	"github.com/3ideas/psasim/lib/compare"
 	"github.com/3ideas/psasim/lib/compdb"
@@ -29,6 +28,8 @@ func main() {
 	dumpNames := flag.String("dumpnames", "", "dump names to file")
 
 	comparisonFile := flag.String("comparisonfile", "", "comparison file")
+	resolvedAlarmsFile := flag.String("resolvedalarmsfile", "", "resolved alarms file")
+	unresolvedAlarmsFile := flag.String("unresolvedalarmsfile", "", "unresolved alarms file")
 
 	flag.Parse()
 
@@ -37,29 +38,23 @@ func main() {
 		defer logFile.Close()
 	}
 
-	var alarms *psalerts.PSAlerts
+	var alerts *psalerts.PSAlerts
 	var err error
 	if *psalertsFile != "" {
-		alarms, err = psalerts.ReadPSAlerts(*psalertsFile)
+		alerts, err = psalerts.ReadPSAlerts(*psalertsFile)
 		if err != nil {
+			fmt.Printf("Error reading file: %s\n", err)
+			slog.Error("Error reading file", "Error", err)
 			log.Fatal("Error reading file:", err)
 		}
 	}
 
 	var compDb *compdb.ComponentDb
 	if *dbFile != "" {
-		startTime := time.Now() // Start timer
-		fmt.Printf("Reading namer from %s\n", *dbFile)
-		slog.Info("Reading namer from ", "file", *dbFile)
-		compDb, err = compdb.LoadCompDb(*dbFile)
+		compDb, err = compdb.ReadDB(*dbFile)
 		if err != nil {
-			fmt.Printf("Error reading database: %s does file exist? %s\n", *dbFile, err)
-			slog.Error("Error reading database", "Error", err, "file", *dbFile)
-			log.Fatal("Error reading database", err)
+			log.Fatal("Error reading database:", err)
 		}
-		duration := time.Since(startTime)                          // Calculate duration
-		slog.Info("Completed reading namer", "duration", duration) // Log duration
-		fmt.Printf("Completed reading namer in %s\n", duration)    // Print duration
 	}
 
 	if *dumpNames != "" {
@@ -142,12 +137,19 @@ func main() {
 		psalerts.CheckAliases(nameChecker)
 	}
 
-	if alarms == nil {
+	if alerts == nil {
 		fmt.Println("No alarms to process")
 		log.Fatal("No alarms to process")
 	}
 
-	alarms.PrintAlarmCounts()
-	alarms.ResolveAliases(nameChecker, eterraToPO)
+	alerts.PrintAlarmCounts()
 
+	if *resolvedAlarmsFile != "" {
+		err = alerts.ResolveAliases(nameChecker, eterraToPO, *resolvedAlarmsFile, *unresolvedAlarmsFile)
+		if err != nil {
+			fmt.Printf("Error resolving aliases: %s\n", err)
+			slog.Error("Error resolving aliases", "Error", err)
+			return
+		}
+	}
 }
